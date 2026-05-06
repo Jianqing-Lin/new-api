@@ -389,7 +389,6 @@ const EditTokenModal = (props) => {
                         label={t('令牌分组')}
                         placeholder={t('令牌分组，默认为用户的分组')}
                         optionList={groups}
-                        renderOptionItem={renderGroupOption}
                         filter={(input, option) => {
                           const q = input.toLowerCase();
                           return (

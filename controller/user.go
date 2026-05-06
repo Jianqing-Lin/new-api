@@ -29,6 +29,18 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+func resolveInviterIdFromAffCode(affCode string) (int, error) {
+	affCode = strings.TrimSpace(affCode)
+	if affCode == "" {
+		return 0, errors.New("邀请码不能为空")
+	}
+	inviterId, err := model.GetUserIdByAffCode(affCode)
+	if err != nil || inviterId <= 0 {
+		return 0, errors.New("邀请码无效")
+	}
+	return inviterId, nil
+}
+
 func Login(c *gin.Context) {
 	if !common.PasswordLoginEnabled {
 		common.ApiErrorI18n(c, i18n.MsgUserPasswordLoginDisabled)
@@ -174,7 +186,11 @@ func Register(c *gin.Context) {
 		return
 	}
 	affCode := user.AffCode // this code is the inviter's code, not the user's own code
-	inviterId, _ := model.GetUserIdByAffCode(affCode)
+	inviterId, err := resolveInviterIdFromAffCode(affCode)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	cleanUser := model.User{
 		Username:    user.Username,
 		Password:    user.Password,
@@ -285,6 +301,22 @@ func GetUser(c *gin.Context) {
 		"data":    user,
 	})
 	return
+}
+
+func GetUserReferralRelation(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	relation, err := model.GetUserReferralRelation(id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	common.ApiSuccess(c, relation)
 }
 
 func GenerateAccessToken(c *gin.Context) {

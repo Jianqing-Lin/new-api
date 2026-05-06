@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -339,6 +340,110 @@ func inviteUser(inviterId int) (err error) {
 	user.AffQuota += common.QuotaForInviter
 	user.AffHistoryQuota += common.QuotaForInviter
 	return DB.Save(user).Error
+}
+
+func ApplyInviterRebateTx(tx *gorm.DB, inviteeUserId int, baseQuota int) (inviterId int, rebateQuota int, err error) {
+	if tx == nil || inviteeUserId <= 0 || baseQuota <= 0 || common.InviterRebateRatio <= 0 {
+		return 0, 0, nil
+	}
+
+	var user User
+	if err = tx.Select("id", "inviter_id").Where("id = ?", inviteeUserId).First(&user).Error; err != nil {
+		return 0, 0, err
+	}
+	if user.InviterId <= 0 {
+		return 0, 0, nil
+	}
+
+	rebateQuota = int(math.Round(float64(baseQuota) * common.InviterRebateRatio / 100.0))
+	if rebateQuota <= 0 {
+		return 0, 0, nil
+	}
+
+	err = tx.Model(&User{}).
+		Where("id = ?", user.InviterId).
+		Updates(map[string]interface{}{
+			"aff_quota":   gorm.Expr("aff_quota + ?", rebateQuota),
+			"aff_history": gorm.Expr("aff_history + ?", rebateQuota),
+		}).Error
+	if err != nil {
+		return 0, 0, err
+	}
+	return user.InviterId, rebateQuota, nil
+}
+
+type ReferralUserInfo struct {
+	Id              int    `json:"id"`
+	Username        string `json:"username"`
+	DisplayName     string `json:"display_name"`
+	Email           string `json:"email"`
+	Group           string `json:"group"`
+	Role            int    `json:"role"`
+	Status          int    `json:"status"`
+	InviterId       int    `json:"inviter_id"`
+	AffCount        int    `json:"aff_count"`
+	AffQuota        int    `json:"aff_quota"`
+	AffHistoryQuota int    `json:"aff_history_quota"`
+}
+
+type UserReferralRelation struct {
+	User         *ReferralUserInfo   `json:"user"`
+	Inviter      *ReferralUserInfo   `json:"inviter"`
+	Invitees     []*ReferralUserInfo `json:"invitees"`
+	InviteeCount int                 `json:"invitee_count"`
+}
+
+func toReferralUserInfo(user *User) *ReferralUserInfo {
+	if user == nil {
+		return nil
+	}
+	return &ReferralUserInfo{
+		Id:              user.Id,
+		Username:        user.Username,
+		DisplayName:     user.DisplayName,
+		Email:           user.Email,
+		Group:           user.Group,
+		Role:            user.Role,
+		Status:          user.Status,
+		InviterId:       user.InviterId,
+		AffCount:        user.AffCount,
+		AffQuota:        user.AffQuota,
+		AffHistoryQuota: user.AffHistoryQuota,
+	}
+}
+
+func GetUserReferralRelation(userId int) (*UserReferralRelation, error) {
+	if userId <= 0 {
+		return nil, errors.New("invalid user id")
+	}
+
+	user, err := GetUserById(userId, true)
+	if err != nil {
+		return nil, err
+	}
+
+	relation := &UserReferralRelation{
+		User: toReferralUserInfo(user),
+	}
+
+	if user.InviterId > 0 {
+		inviter, err := GetUserById(user.InviterId, true)
+		if err == nil {
+			relation.Inviter = toReferralUserInfo(inviter)
+		}
+	}
+
+	var invitees []*User
+	if err = DB.Where("inviter_id = ?", userId).Order("id desc").Find(&invitees).Error; err != nil {
+		return nil, err
+	}
+	relation.InviteeCount = len(invitees)
+	relation.Invitees = make([]*ReferralUserInfo, 0, len(invitees))
+	for _, invitee := range invitees {
+		relation.Invitees = append(relation.Invitees, toReferralUserInfo(invitee))
+	}
+
+	return relation, nil
 }
 
 func (user *User) TransferAffQuotaToQuota(quota int) error {

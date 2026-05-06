@@ -280,6 +280,7 @@ func migrateDB() error {
 		&SubscriptionPreConsumeRecord{},
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
+		&OperationLog{},
 	)
 	if err != nil {
 		return err
@@ -367,7 +368,7 @@ func migrateDBFast() error {
 
 func migrateLOGDB() error {
 	var err error
-	if err = LOG_DB.AutoMigrate(&Log{}); err != nil {
+	if err = LOG_DB.AutoMigrate(&Log{}, &OperationLog{}); err != nil {
 		return err
 	}
 	return nil

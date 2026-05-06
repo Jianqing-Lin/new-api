@@ -78,6 +78,7 @@ const RegisterForm = () => {
     password: '',
     password2: '',
     email: '',
+    aff_code: '',
     verification_code: '',
     wechat_verification_code: '',
   });
@@ -118,6 +119,13 @@ const RegisterForm = () => {
   if (affCode) {
     localStorage.setItem('aff', affCode);
   }
+
+  useEffect(() => {
+    const savedAffCode = affCode || localStorage.getItem('aff') || '';
+    if (savedAffCode) {
+      setInputs((prev) => ({ ...prev, aff_code: savedAffCode }));
+    }
+  }, []);
 
   const status = useMemo(() => {
     if (statusState?.status) return statusState.status;
@@ -212,8 +220,26 @@ const RegisterForm = () => {
   };
 
   function handleChange(name, value) {
+    if (name === 'aff_code') {
+      localStorage.setItem('aff', value || '');
+    }
     setInputs((inputs) => ({ ...inputs, [name]: value }));
   }
+
+  const ensureAffCodeBeforeRegister = () => {
+    const currentAffCode = (
+      inputs.aff_code ||
+      affCode ||
+      localStorage.getItem('aff') ||
+      ''
+    ).trim();
+    if (!currentAffCode) {
+      showInfo('请输入邀请码');
+      return '';
+    }
+    localStorage.setItem('aff', currentAffCode);
+    return currentAffCode;
+  };
 
   async function handleSubmit(e) {
     if (password.length < 8) {
@@ -224,6 +250,10 @@ const RegisterForm = () => {
       showInfo('两次输入的密码不一致');
       return;
     }
+    const currentAffCode = ensureAffCodeBeforeRegister();
+    if (!currentAffCode) {
+      return;
+    }
     if (username && password) {
       if (turnstileEnabled && turnstileToken === '') {
         showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
@@ -231,10 +261,7 @@ const RegisterForm = () => {
       }
       setRegisterLoading(true);
       try {
-        if (!affCode) {
-          affCode = localStorage.getItem('aff');
-        }
-        inputs.aff_code = affCode;
+        inputs.aff_code = currentAffCode;
         const res = await API.post(
           `/api/user/register?turnstile=${turnstileToken}`,
           inputs,
@@ -280,6 +307,9 @@ const RegisterForm = () => {
   };
 
   const handleGitHubClick = () => {
+    if (!ensureAffCodeBeforeRegister()) {
+      return;
+    }
     if (githubButtonDisabled) {
       return;
     }
@@ -302,6 +332,9 @@ const RegisterForm = () => {
   };
 
   const handleDiscordClick = () => {
+    if (!ensureAffCodeBeforeRegister()) {
+      return;
+    }
     setDiscordLoading(true);
     try {
       onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true });
@@ -311,6 +344,9 @@ const RegisterForm = () => {
   };
 
   const handleOIDCClick = () => {
+    if (!ensureAffCodeBeforeRegister()) {
+      return;
+    }
     setOidcLoading(true);
     try {
       onOIDCClicked(
@@ -325,6 +361,9 @@ const RegisterForm = () => {
   };
 
   const handleLinuxDOClick = () => {
+    if (!ensureAffCodeBeforeRegister()) {
+      return;
+    }
     setLinuxdoLoading(true);
     try {
       onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true });
@@ -334,6 +373,9 @@ const RegisterForm = () => {
   };
 
   const handleCustomOAuthClick = (provider) => {
+    if (!ensureAffCodeBeforeRegister()) {
+      return;
+    }
     setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: true }));
     try {
       onCustomOAuthClicked(provider, { shouldLogout: true });
@@ -357,6 +399,9 @@ const RegisterForm = () => {
   };
 
   const onTelegramLoginClicked = async (response) => {
+    if (!ensureAffCodeBeforeRegister()) {
+      return;
+    }
     const fields = [
       'id',
       'first_name',
@@ -410,6 +455,16 @@ const RegisterForm = () => {
             </div>
             <div className='px-2 py-8'>
               <div className='space-y-3'>
+                <Form.Input
+                  field='aff_code'
+                  label={t('邀请码')}
+                  placeholder={t('请输入邀请码')}
+                  name='aff_code'
+                  value={inputs.aff_code}
+                  onChange={(value) => handleChange('aff_code', value)}
+                  prefix={<IconKey />}
+                />
+
                 {status.wechat_login && (
                   <Button
                     theme='outline'
@@ -573,6 +628,16 @@ const RegisterForm = () => {
             </div>
             <div className='px-2 py-8'>
               <Form className='space-y-3'>
+                <Form.Input
+                  field='aff_code'
+                  label={t('邀请码')}
+                  placeholder={t('请输入邀请码')}
+                  name='aff_code'
+                  value={inputs.aff_code}
+                  onChange={(value) => handleChange('aff_code', value)}
+                  prefix={<IconKey />}
+                />
+
                 <Form.Input
                   field='username'
                   label={t('用户名')}
@@ -781,8 +846,7 @@ const RegisterForm = () => {
         style={{ top: '50%', left: '-120px' }}
       />
       <div className='w-full max-w-sm mt-[60px]'>
-        {showEmailRegister ||
-        !hasOAuthRegisterOptions
+        {showEmailRegister || !hasOAuthRegisterOptions
           ? renderEmailRegisterForm()
           : renderOAuthOptions()}
         {renderWeChatLoginModal()}

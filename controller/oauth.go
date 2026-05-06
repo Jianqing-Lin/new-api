@@ -110,7 +110,11 @@ func HandleOAuth(c *gin.Context) {
 		case *OAuthUserDeletedError:
 			common.ApiErrorI18n(c, i18n.MsgOAuthUserDeleted)
 		case *OAuthRegistrationDisabledError:
-			common.ApiErrorI18n(c, i18n.MsgUserRegisterDisabled)
+			if err.Error() == "registration is disabled" {
+				common.ApiErrorI18n(c, i18n.MsgUserRegisterDisabled)
+			} else {
+				common.ApiError(c, err)
+			}
 		default:
 			common.ApiError(c, err)
 		}
@@ -265,8 +269,17 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	// Handle affiliate code
 	affCode := session.Get("aff")
 	inviterId := 0
-	if affCode != nil {
-		inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
+	if affCode == nil {
+		return nil, &OAuthRegistrationDisabledError{Message: "邀请码不能为空"}
+	}
+	if code, ok := affCode.(string); ok {
+		resolvedInviterId, resolveErr := resolveInviterIdFromAffCode(code)
+		if resolveErr != nil {
+			return nil, &OAuthRegistrationDisabledError{Message: resolveErr.Error()}
+		}
+		inviterId = resolvedInviterId
+	} else {
+		return nil, &OAuthRegistrationDisabledError{Message: "邀请码不能为空"}
 	}
 
 	// Use transaction to ensure user creation and OAuth binding are atomic
@@ -337,9 +350,14 @@ func (e *OAuthUserDeletedError) Error() string {
 	return "user has been deleted"
 }
 
-type OAuthRegistrationDisabledError struct{}
+type OAuthRegistrationDisabledError struct {
+	Message string
+}
 
 func (e *OAuthRegistrationDisabledError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
 	return "registration is disabled"
 }
 

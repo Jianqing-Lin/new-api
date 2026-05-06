@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/pkg/cachex"
 	"github.com/samber/hot"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -521,6 +523,8 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 	var logMoney float64
 	var logPaymentMethod string
 	var upgradeGroup string
+	var logInviterId int
+	var logRebateQuota int
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var order SubscriptionOrder
 		if err := tx.Set("gorm:query_option", "FOR UPDATE").Where(refCol+" = ?", tradeNo).First(&order).Error; err != nil {
@@ -565,6 +569,13 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 		logPlanTitle = plan.Title
 		logMoney = order.Money
 		logPaymentMethod = order.PaymentMethod
+		rebateBaseQuota := int(decimal.NewFromFloat(order.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
+		localInviterId, localRebateQuota, rebateErr := ApplyInviterRebateTx(tx, order.UserId, rebateBaseQuota)
+		if rebateErr != nil {
+			return rebateErr
+		}
+		logInviterId = localInviterId
+		logRebateQuota = localRebateQuota
 		return nil
 	})
 	if err != nil {
@@ -576,6 +587,9 @@ func CompleteSubscriptionOrder(tradeNo string, providerPayload string, expectedP
 	if logUserId > 0 {
 		msg := fmt.Sprintf("订阅购买成功，套餐: %s，支付金额: %.2f，支付方式: %s", logPlanTitle, logMoney, logPaymentMethod)
 		RecordLog(logUserId, LogTypeTopup, msg)
+	}
+	if logInviterId > 0 && logRebateQuota > 0 {
+		RecordLog(logInviterId, LogTypeTopup, fmt.Sprintf("下级用户订阅下单返利 %s", logger.LogQuota(logRebateQuota)))
 	}
 	return nil
 }

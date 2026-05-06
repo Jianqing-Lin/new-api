@@ -36,6 +36,7 @@ export default function SettingsCreditLimit(props) {
     PreConsumedQuota: '',
     QuotaForInviter: '',
     QuotaForInvitee: '',
+    InviterRebateRatio: '',
     'quota_setting.enable_free_model_pre_consume': true,
   });
   const refForm = useRef();
@@ -143,6 +144,24 @@ export default function SettingsCreditLimit(props) {
                     setInputs({
                       ...inputs,
                       QuotaForInviter: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={6}>
+                <Form.InputNumber
+                  label={t('下级订单返利比例')}
+                  field={'InviterRebateRatio'}
+                  step={0.1}
+                  min={0}
+                  max={100}
+                  suffix={'%'}
+                  extraText={t('按下级用户网站下单获得的额度折算返利')}
+                  placeholder={t('例如：10')}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      InviterRebateRatio: String(value),
                     })
                   }
                 />

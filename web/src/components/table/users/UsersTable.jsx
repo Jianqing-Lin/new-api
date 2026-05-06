@@ -24,7 +24,7 @@ import {
   IllustrationNoResult,
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
-import { getUsersColumns } from './UsersColumnDefs';
+import { getUsersColumns } from './UsersColumnDefsNext';
 import PromoteUserModal from './modals/PromoteUserModal';
 import DemoteUserModal from './modals/DemoteUserModal';
 import EnableDisableUserModal from './modals/EnableDisableUserModal';
@@ -32,6 +32,7 @@ import DeleteUserModal from './modals/DeleteUserModal';
 import ResetPasskeyModal from './modals/ResetPasskeyModal';
 import ResetTwoFAModal from './modals/ResetTwoFAModal';
 import UserSubscriptionsModal from './modals/UserSubscriptionsModal';
+import UserReferralRelationModal from './modals/UserReferralRelationModal';
 
 const UsersTable = (usersData) => {
   const {
@@ -63,6 +64,8 @@ const UsersTable = (usersData) => {
   const [showResetPasskeyModal, setShowResetPasskeyModal] = useState(false);
   const [showResetTwoFAModal, setShowResetTwoFAModal] = useState(false);
   const [showUserSubscriptionsModal, setShowUserSubscriptionsModal] =
+    useState(false);
+  const [showReferralRelationModal, setShowReferralRelationModal] =
     useState(false);
 
   // Modal handlers
@@ -100,6 +103,11 @@ const UsersTable = (usersData) => {
   const showUserSubscriptionsUserModal = (user) => {
     setModalUser(user);
     setShowUserSubscriptionsModal(true);
+  };
+
+  const showReferralRelationUserModal = (user) => {
+    setModalUser(user);
+    setShowReferralRelationModal(true);
   };
 
   // Modal confirm handlers
@@ -141,6 +149,7 @@ const UsersTable = (usersData) => {
       showResetPasskeyModal: showResetPasskeyUserModal,
       showResetTwoFAModal: showResetTwoFAUserModal,
       showUserSubscriptionsModal: showUserSubscriptionsUserModal,
+      showReferralRelationModal: showReferralRelationUserModal,
     });
   }, [
     t,
@@ -153,6 +162,7 @@ const UsersTable = (usersData) => {
     showResetPasskeyUserModal,
     showResetTwoFAUserModal,
     showUserSubscriptionsUserModal,
+    showReferralRelationUserModal,
   ]);
 
   // Handle compact mode by removing fixed positioning
@@ -259,6 +269,13 @@ const UsersTable = (usersData) => {
         user={modalUser}
         t={t}
         onSuccess={() => refresh?.()}
+      />
+
+      <UserReferralRelationModal
+        visible={showReferralRelationModal}
+        onCancel={() => setShowReferralRelationModal(false)}
+        user={modalUser}
+        t={t}
       />
     </>
   );

@@ -49,6 +49,7 @@ const routerMap = {
   deployment: '/console/deployment',
   playground: '/console/playground',
   personal: '/console/personal',
+  'operation-log': '/console/operation-log',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -484,6 +485,22 @@ const SiderBar = ({ onNavigate = () => {} }) => {
                   <div className='sidebar-group-label'>{t('管理员')}</div>
                 )}
                 {adminItems.map((item) => renderNavItem(item))}
+              </div>
+            </>
+          )}
+
+          {isRoot() && (
+            <>
+              <Divider className='sidebar-divider' />
+              <div>
+                {!collapsed && (
+                  <div className='sidebar-group-label'>{t('超级管理员')}</div>
+                )}
+                {renderNavItem({
+                  text: t('操作日志'),
+                  itemKey: 'operation-log',
+                  className: '',
+                })}
               </div>
             </>
           )}
